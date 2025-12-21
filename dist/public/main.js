@@ -26,29 +26,32 @@
     HFS.onEvent('entryIcon', ({ entry }) => {
         if (!isSupported(entry)) return;
 
-        return h(ImgFallback, {
-            fallback: () => entry.getDefaultIcon(),
-            props: {
-                src: entry.uri + '?get=thumb',
-                className: 'icon thumbnail', // 'thumbnail' class needed for Instant-Show to find it
-                loading: 'lazy', // Always lazy load for performance
-                alt: entry.name,
-                // Optional: Simple hover preview? 
-                // For now, keep it simple and fast.
-                onMouseLeave() {
-                    const preview = document.getElementById('thumbnailsPreview');
-                    if (preview) preview.innerHTML = '';
-                },
-                onMouseEnter(ev) {
-                    if (!ev.target.closest('.dir')) return;
-                    if (!HFS.state.tile_size) {
-                        // List mode preview
+        // Wrap in span.icon for compatibility with 'Instant-Show' plugin
+        return h('span', { className: 'icon' },
+            h(ImgFallback, {
+                fallback: () => entry.getDefaultIcon(),
+                tag: 'img',
+                props: {
+                    src: entry.uri + '?get=thumb',
+                    className: 'thumbnail', // 'thumbnail' class needed for Instant-Show to find it
+                    loading: 'lazy', // Always lazy load for performance
+                    alt: entry.name,
+                    style: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' },
+                    onMouseLeave() {
                         const preview = document.getElementById('thumbnailsPreview');
-                        if (preview) preview.innerHTML = `<img src="${entry.uri}?get=thumb" class="preview-large"/>`;
-                    }
-                },
-            }
-        });
+                        if (preview) preview.innerHTML = '';
+                    },
+                    onMouseEnter(ev) {
+                        if (!ev.target.closest('.dir')) return;
+                        if (!HFS.state.tile_size) {
+                            // List mode preview
+                            const preview = document.getElementById('thumbnailsPreview');
+                            if (preview) preview.innerHTML = `<img src="${entry.uri}?get=thumb" class="preview-large"/>`;
+                        }
+                    },
+                }
+            })
+        );
     });
 
     // Simple container for list-view hover preview

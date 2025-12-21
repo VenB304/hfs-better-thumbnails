@@ -6,7 +6,7 @@
  * - FFmpeg integration inspired by 'videojs-player' and 'unsupported-videos'
  */
 
-exports.version = 3;
+exports.version = 4;
 exports.description = "High-performance thumbnails generation using FFmpeg. Generates static images to prevent frontend lag.";
 exports.apiRequired = 12.0; // Access to api.misc
 exports.repo = "hfs-other-plugins/better-thumbnails";
@@ -40,8 +40,8 @@ exports.config = {
     ffmpeg_path: {
         type: 'real_path',
         fileMask: 'ffmpeg*',
-        label: "FFmpeg Executable Path",
-        helperText: "Path to ffmpeg binary. Leave empty if in system PATH.",
+        label: "FFmpeg Executable Path (Required)",
+        helperText: "Path to ffmpeg binary (e.g. C:/ffmpeg/bin/ffmpeg.exe).",
         xs: 12
     },
     log: { type: 'boolean', defaultValue: false, label: "Log thumbnail generation" },
@@ -233,20 +233,18 @@ exports.init = async api => {
             const proc = spawn(ffmpegPath, args);
 
             const chunks = [];
+            const stderrChunks = [];
+
             proc.stdout.on('data', chunk => chunks.push(chunk));
+            proc.stderr.on('data', chunk => stderrChunks.push(chunk));
 
             proc.on('error', err => reject(err));
 
             proc.on('exit', (code) => {
                 if (code !== 0) {
-                    // If 3s failed (maybe video is 1s long?), try 0s
-                    if (chunks.length === 0) {
-                        // Retry at 0
-                        // For simplicity in this V1, just reject or handle logic.
-                        // console.debug("Retrying at 0s...");
-                        // We will just return empty to let catch handle it.
-                        return reject(new Error(`FFmpeg exited with code ${code}`));
-                    }
+                    const stderr = Buffer.concat(stderrChunks).toString();
+                    // console.error(`FFmpeg Error (Code ${code}):`, stderr); // Debug
+                    return reject(new Error(`FFmpeg exited with code ${code}. Stderr: ${stderr}`));
                 }
                 const fullBuffer = Buffer.concat(chunks);
                 if (fullBuffer.length === 0) return reject(new Error("FFmpeg produced empty output"));
