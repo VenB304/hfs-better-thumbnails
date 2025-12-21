@@ -1,0 +1,87 @@
+/**
+ * Better Thumbnails Frontend
+ * 
+ * Credits:
+ * - Based on 'thumbnails' frontend by Rejetto (https://github.com/rejetto/thumbnails)
+ */
+'use strict'; {
+    const { h, t } = HFS;
+    const config = HFS.getPluginConfig();
+
+    // List of video extensions we support via FFmpeg
+    // We treat them exactly like images now, because the server does the heavy lifting.
+    const VIDEO_EXTS = ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'ts', 'm4v'];
+
+    const isSupported = (entry) => {
+        if (!entry) return false;
+        const ext = entry.ext.toLowerCase();
+
+        // Server-side calculated support flag or Standard Image Exts or Video Exts
+        return entry._th
+            || ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'tif', 'gif', 'avif', 'svg'].includes(ext)
+            || VIDEO_EXTS.includes(ext);
+    };
+
+    // Override the default entry icon with our thumbnail
+    HFS.onEvent('entryIcon', ({ entry }) => {
+        if (!isSupported(entry)) return;
+
+        return h(ImgFallback, {
+            fallback: () => entry.getDefaultIcon(),
+            props: {
+                src: entry.uri + '?get=thumb',
+                className: 'icon thumbnail',
+                loading: 'lazy', // Always lazy load for performance
+                alt: entry.name,
+                // Optional: Simple hover preview? 
+                // For now, keep it simple and fast.
+                onMouseLeave() {
+                    const preview = document.getElementById('thumbnailsPreview');
+                    if (preview) preview.innerHTML = '';
+                },
+                onMouseEnter(ev) {
+                    if (!ev.target.closest('.dir')) return;
+                    if (!HFS.state.tile_size) {
+                        // List mode preview
+                        const preview = document.getElementById('thumbnailsPreview');
+                        if (preview) preview.innerHTML = `<img src="${entry.uri}?get=thumb" class="preview-large"/>`;
+                    }
+                },
+            }
+        });
+    });
+
+    // Simple container for list-view hover preview
+    HFS.onEvent('afterList', () =>
+        "<div id='thumbnailsPreview'></div>" +
+        "<style>" +
+        " #thumbnailsPreview { position: fixed; bottom: 10px; right: 10px; z-index: 100; pointer-events: none; }" +
+        " #thumbnailsPreview img.preview-large { max-width: 300px; max-height: 300px; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.5); background: #000; }" +
+        " .icon.thumbnail { object-fit: cover; border-radius: 4px; aspect-ratio: 1; }" +
+        "</style>"
+    );
+
+    function ImgFallback({ fallback, tag = 'img', props }) {
+        const [err, setErr] = HFS.React.useState(false);
+        if (err) return fallback ? h(fallback) : null;
+
+        return h(tag, Object.assign({}, props, {
+            onError: () => setErr(true)
+        }));
+    }
+
+    // Add "Tiles Mode" button to file menu if not already there
+    HFS.onEvent('fileMenu', ({ entry }) => {
+        if (!HFS.state.tile_size && isSupported(entry)) {
+            return [{
+                icon: '⊞',
+                label: t("Enable tiles mode"),
+                onClick() {
+                    HFS.state.tile_size = 10; // Enable tiles
+                    HFS.dialogLib.toast(t('Switched to Tiles Mode'));
+                }
+            }];
+        }
+    });
+
+}
