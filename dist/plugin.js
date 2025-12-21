@@ -6,7 +6,7 @@
  * - FFmpeg integration inspired by 'videojs-player' and 'unsupported-videos'
  */
 
-exports.version = 4;
+exports.version = 5;
 exports.description = "High-performance thumbnails generation using FFmpeg. Generates static images to prevent frontend lag.";
 exports.apiRequired = 12.0; // Access to api.misc
 exports.repo = "hfs-other-plugins/better-thumbnails";
@@ -219,12 +219,16 @@ exports.init = async api => {
             // I'll stick to a safe default of 3 seconds for speed. 
             // 3 seconds is usually past the black intro.
 
-            const seekTime = '00:00:03';
+            // Fixed seek time to 1s to better handle short clips (was 3s)
+            // Ideally we'd probe, but for performance we guess.
+            const seekTime = '00:00:01';
 
             const args = [
                 '-ss', seekTime,
                 '-i', filePath,
                 '-frames:v', '1',
+                '-q:v', '2', // Force good quality for MJPEG
+                '-strict', 'unofficial', // FIX: Allow non-standard YUV (fixes error -22)
                 '-f', 'image2',
                 '-c:v', 'mjpeg',
                 'pipe:1'

@@ -26,8 +26,21 @@
     HFS.onEvent('entryIcon', ({ entry }) => {
         if (!isSupported(entry)) return;
 
+        // Use ref to reset 'Instant-Show' binding
+        const domRef = HFS.React.useRef(null);
+        HFS.React.useEffect(() => {
+            if (domRef.current) {
+                const li = domRef.current.closest('li.file');
+                if (li && li.dataset.bound) {
+                    // Reset the bind flag so Instant-Show's MutationObserver 
+                    // (or next cycle) can re-bind to our new icon.
+                    delete li.dataset.bound;
+                }
+            }
+        }, []);
+
         // Wrap in span.icon for compatibility with 'Instant-Show' plugin
-        return h('span', { className: 'icon' },
+        return h('span', { className: 'icon', ref: domRef },
             h(ImgFallback, {
                 fallback: () => entry.getDefaultIcon(),
                 tag: 'img',
