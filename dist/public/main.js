@@ -22,12 +22,11 @@
             || VIDEO_EXTS.includes(ext);
     };
 
-    // Override the default entry icon with our thumbnail
-    HFS.onEvent('entryIcon', ({ entry }) => {
-        if (!isSupported(entry)) return;
-
+    // Component to properly handle hooks
+    function BetterThumbnailIcon({ entry }) {
         // Use ref to reset 'Instant-Show' binding
         const domRef = HFS.React.useRef(null);
+
         HFS.React.useEffect(() => {
             if (domRef.current) {
                 const li = domRef.current.closest('li.file');
@@ -37,9 +36,8 @@
                     delete li.dataset.bound;
                 }
             }
-        }, []);
+        }, []); // Empty dependency array checks once on mount
 
-        // Wrap in span.icon for compatibility with 'Instant-Show' plugin
         return h('span', { className: 'icon', ref: domRef },
             h(ImgFallback, {
                 fallback: () => entry.getDefaultIcon(),
@@ -47,7 +45,7 @@
                 props: {
                     src: entry.uri + '?get=thumb',
                     className: 'thumbnail', // 'thumbnail' class needed for Instant-Show to find it
-                    loading: 'lazy', // Always lazy load for performance
+                    loading: 'lazy',
                     alt: entry.name,
                     style: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' },
                     onMouseLeave() {
@@ -65,6 +63,12 @@
                 }
             })
         );
+    }
+
+    // Override the default entry icon with our thumbnail
+    HFS.onEvent('entryIcon', ({ entry }) => {
+        if (!isSupported(entry)) return;
+        return h(BetterThumbnailIcon, { entry });
     });
 
     // Simple container for list-view hover preview
