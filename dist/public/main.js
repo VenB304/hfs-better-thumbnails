@@ -55,7 +55,8 @@
                     className: 'thumbnail', // 'thumbnail' class needed for Instant-Show to find it
                     loading: 'lazy',
                     alt: entry.name,
-                    style: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' },
+                    // FIX: Use 'contain' to show full image, 'auto' size to respect aspect ratio
+                    style: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' },
                     onMouseLeave() {
                         const preview = document.getElementById('thumbnailsPreview');
                         if (preview) preview.innerHTML = '';
@@ -85,7 +86,7 @@
         "<style>" +
         " #thumbnailsPreview { position: fixed; bottom: 10px; right: 10px; z-index: 100; pointer-events: none; }" +
         " #thumbnailsPreview img.preview-large { max-width: 300px; max-height: 300px; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.5); background: #000; }" +
-        " .icon.thumbnail { object-fit: cover; border-radius: 4px; aspect-ratio: 1; }" +
+        " .icon.thumbnail { object-fit: contain; border-radius: 4px; }" +
         "</style>"
     );
 

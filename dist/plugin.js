@@ -6,7 +6,7 @@
  * - FFmpeg integration inspired by 'videojs-player' and 'unsupported-videos'
  */
 
-exports.version = 7;
+exports.version = 8;
 exports.description = "High-performance thumbnails generation using FFmpeg. Generates static images to prevent frontend lag.";
 exports.apiRequired = 12.0; // Access to api.misc
 exports.repo = "hfs-other-plugins/better-thumbnails";
@@ -139,13 +139,14 @@ exports.init = async api => {
                     }
 
                     const w = Number(ctx.query.w) || api.getConfig('pixels');
-                    const h = Number(ctx.query.h); // usually undefined, preserve aspect ratio
-                    const quality = api.getConfig('quality');
+                    const h = Number(ctx.query.h);
 
                     const sharp = api.customApiCall('sharp', imageBuffer)[0];
                     if (!sharp) throw new Error('Sharp plugin not active');
 
-                    const outputBuffer = await sharp.resize(w, h || null, { fit: 'inside' })
+                    // FIX: Pass 'w' as height too if 'h' is missing, to creates a bounding box (w x w)
+                    // 'fit: inside' ensures longest side <= w, preserving aspect ratio.
+                    const outputBuffer = await sharp.resize(w, h || w, { fit: 'inside' })
                         .rotate() // Auto-rotate based on EXIF
                         .jpeg({ quality })
                         .toBuffer();
