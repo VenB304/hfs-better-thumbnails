@@ -102,5 +102,4 @@ This plugin works as an on-demand generation pipeline:
 
 ## 🏆 Credits
 
-*   **@rejetto**: Based on the original [hfs-thumbnails](https://github.com/rejetto/thumbnails) plugin.
-*   **Community**: Thanks to the HFS community for testing and feedback.
+*   **[hfs-thumbnails](https://github.com/rejetto/thumbnails)**: Thanks to @rejetto for the original code of hfs-thumbnails this plugin is improved upon.
