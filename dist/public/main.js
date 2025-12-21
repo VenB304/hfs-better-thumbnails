@@ -30,7 +30,7 @@
             fallback: () => entry.getDefaultIcon(),
             props: {
                 src: entry.uri + '?get=thumb',
-                className: 'icon thumbnail',
+                className: 'icon thumbnail', // 'thumbnail' class needed for Instant-Show to find it
                 loading: 'lazy', // Always lazy load for performance
                 alt: entry.name,
                 // Optional: Simple hover preview? 
