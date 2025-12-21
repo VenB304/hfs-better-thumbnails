@@ -31,9 +31,17 @@
             if (domRef.current) {
                 const li = domRef.current.closest('li.file');
                 if (li && li.dataset.bound) {
-                    // Reset the bind flag so Instant-Show's MutationObserver 
-                    // (or next cycle) can re-bind to our new icon.
+                    // Reset the bind flag
                     delete li.dataset.bound;
+
+                    // FORCE Instant-Show to re-scan by triggering a childList mutation
+                    // Instant-Show only watches { childList: true }, not attributes.
+                    // We simply append and remove a visually hidden dummy element.
+                    const dummy = document.createElement('i');
+                    dummy.style.display = 'none';
+                    li.appendChild(dummy);
+                    // Remove in next tick to ensure observer catches the addition
+                    setTimeout(() => dummy.remove(), 0);
                 }
             }
         }, []); // Empty dependency array checks once on mount
