@@ -6,7 +6,7 @@
  * - FFmpeg integration inspired by 'videojs-player' and 'unsupported-videos'
  */
 
-exports.version = 9;
+exports.version = 10;
 exports.description = "High-performance thumbnails generation using FFmpeg. Generates static images to prevent frontend lag.";
 exports.apiRequired = 12.0; // Access to api.misc
 exports.repo = "hfs-other-plugins/better-thumbnails";
@@ -174,9 +174,24 @@ exports.init = async api => {
         }
     };
 
-    function generateVideoThumbnail(filePath) {
+    async function generateVideoThumbnail(filePath) {
+        const ffmpegPath = api.getConfig('ffmpeg_path') || 'ffmpeg';
+        const ffprobePath = getFFprobePath(ffmpegPath);
+
+        // 1. Try to extract embedded cover art (metadata)
+        try {
+            const streamIndex = await getAttachedPictureStreamIndex(filePath, ffprobePath);
+            if (streamIndex !== null) {
+                // Found embedded art! Extract it.
+                return await extractEmbeddedThumbnail(filePath, streamIndex, ffmpegPath);
+            }
+        } catch (err) {
+            if (api.getConfig('log')) console.log(`BetterThumbnails: Embedded capability check failed [${filePath}]`, err.message);
+            // Non-fatal, fall back to seek
+        }
+        
+        // 2. Fallback: Seek to 1s
         return new Promise((resolve, reject) => {
-            const ffmpegPath = api.getConfig('ffmpeg_path') || 'ffmpeg';
             // Fixed 1s seek for safety
             const seekTime = '00:00:01';
 
@@ -205,6 +220,88 @@ exports.init = async api => {
                 }
                 const fullBuffer = Buffer.concat(chunks);
                 if (fullBuffer.length === 0) return reject(new Error("FFmpeg produced empty output"));
+                resolve(fullBuffer);
+            });
+        });
+    }
+
+    function getFFprobePath(ffmpegPath) {
+        // Simple heuristic: replace 'ffmpeg' with 'ffprobe' in the filename
+        const dir = path.dirname(ffmpegPath);
+        const ext = path.extname(ffmpegPath);
+        const name = path.basename(ffmpegPath, ext);
+        
+        if (name.toLowerCase() === 'ffmpeg') {
+            return path.join(dir, 'ffprobe' + ext);
+        }
+        return 'ffprobe'; // Default to PATH
+    }
+
+    function getAttachedPictureStreamIndex(filePath, ffprobePath) {
+        return new Promise((resolve, reject) => {
+            // ffprobe to find stream with disposition=attached_pic
+            const args = [
+                '-v', 'error',
+                '-select_streams', 'v',
+                '-show_entries', 'stream=index:stream_disposition=attached_pic',
+                '-of', 'json',
+                filePath
+            ];
+
+            const proc = spawn(ffprobePath, args);
+            const chunks = [];
+            
+            proc.stdout.on('data', chunk => chunks.push(chunk));
+            proc.on('error', err => reject(err));
+            proc.on('exit', (code) => {
+                if (code !== 0) return reject(new Error(`ffprobe exited with code ${code}`));
+                
+                try {
+                    const output = Buffer.concat(chunks).toString();
+                    const json = JSON.parse(output);
+                    
+                    if (json.streams) {
+                        for (const stream of json.streams) {
+                            if (stream.disposition && stream.disposition.attached_pic === 1) {
+                                return resolve(stream.index);
+                            }
+                        }
+                    }
+                    resolve(null);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+
+    function extractEmbeddedThumbnail(filePath, streamIndex, ffmpegPath) {
+        return new Promise((resolve, reject) => {
+            // Extract the specific stream
+            // -map 0:v:{index} -c copy (fastest, keeps original format) or -c:v mjpeg to ensure image
+            // We use -c:v mjpeg to ensure we get a standard image buffer
+            const args = [
+                '-i', filePath,
+                '-map', `0:${streamIndex}`,
+                '-c:v', 'mjpeg', // Convert to mjpeg to be safe/consistent
+                '-f', 'image2',
+                'pipe:1'
+            ];
+            
+            const proc = spawn(ffmpegPath, args);
+            const chunks = [];
+            const stderrChunks = [];
+
+            proc.stdout.on('data', chunk => chunks.push(chunk));
+            proc.stderr.on('data', chunk => stderrChunks.push(chunk));
+            proc.on('error', err => reject(err));
+            proc.on('exit', (code) => {
+                if (code !== 0) {
+                    const stderr = Buffer.concat(stderrChunks).toString();
+                    return reject(new Error(`FFmpeg extract failed with code ${code}. Stderr: ${stderr}`));
+                }
+                const fullBuffer = Buffer.concat(chunks);
+                if (fullBuffer.length === 0) return reject(new Error("FFmpeg extracted empty buffer"));
                 resolve(fullBuffer);
             });
         });
