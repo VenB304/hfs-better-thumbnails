@@ -6,7 +6,7 @@
  * - FFmpeg integration inspired by 'videojs-player' and 'unsupported-videos'
  */
 
-exports.version = 10;
+exports.version = 11;
 exports.description = "High-performance thumbnails generation using FFmpeg. Generates static images to prevent frontend lag.";
 exports.apiRequired = 12.0; // Access to api.misc
 exports.repo = "hfs-other-plugins/better-thumbnails";
