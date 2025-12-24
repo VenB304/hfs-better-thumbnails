@@ -27,17 +27,30 @@
         // Use ref to reset 'Instant-Show' binding
         const domRef = HFS.React.useRef(null);
 
-        // REMOVED: Logic that reset 'dataset.bound' and triggered mutations.
-        // This was causing Instant-Show (and likely other plugins) to re-bind their click listeners,
-        // resulting in the "show" action firing twice and duplicate video players.
-        // If Instant-Show needs to see the new thumbnail, it should handle dynamic lookups.
+        // Check if this is a video.
+        // For videos, Instant-Show binds to the DEFAULT 'span.icon' immediately.
+        // When we mount and replace it with OUR 'span.icon', the listener is lost (zombie).
+        // We must force Instant-Show to find us.
+        //
+        // For IMAGES, Instant-Show waits for 'img.thumbnail'. When we execute, it finds us
+        // and binds correctly. If we reset bind here, it would double-bind (rendering bug).
+        const isVideo = VIDEO_EXTS.includes(entry.ext.toLowerCase());
 
-        /* 
-         * Previous logic (removed):
-         * Checking domRef.current.closest('li.file')
-         * Deleting li.dataset.bound
-         * Appending/Removing dummy element to trigger MutationObserver
-         */
+        HFS.React.useEffect(() => {
+            if (isVideo && domRef.current) {
+                const li = domRef.current.closest('li.file');
+                if (li && li.dataset.bound) {
+                    // Reset the bind flag so Instant-Show finds the NEW icon
+                    delete li.dataset.bound;
+
+                    // Trigger MutationObserver
+                    const dummy = document.createElement('i');
+                    dummy.style.display = 'none';
+                    li.appendChild(dummy);
+                    setTimeout(() => dummy.remove(), 0);
+                }
+            }
+        }, []);
 
         return h('span', { className: 'icon', ref: domRef },
             h(ImgFallback, {
